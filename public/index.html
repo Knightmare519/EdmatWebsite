@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Misi Ward Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M12 34h40v11a7 7 0 0 1-7 7H19a7 7 0 0 1-7-7V34z" fill="#ffffff" />
+          <path d="M10 35h44v-4c0-9-6-16-22-16S10 22 10 31v4z" fill="#ffffff" />
+          <rect x="27" y="24" width="10" height="18" rx="2" fill="#ef5656" />
+          <rect x="23" y="28" width="18" height="10" rx="2" fill="#ef5656" />
+          <path d="M12 34h40" stroke="#dbe6f2" stroke-width="2" />
+        </svg>
+        <div class="brand-copy">
+          <h1>Misi</h1>
+          <p>Ward Response Dashboard</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="randomNotifyBtn" class="notify-btn" type="button" aria-label="Trigger random bed status">
+          &#128276;
+        </button>
+        <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">Dark Mode</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="workspace">
+        <header class="workspace-head">
+          <div>
+            <h1>Ward Overview</h1>
+            <p>Real-time request status of all beds</p>
+          </div>
+          <div class="legend">
+            <span><i class="dot normal"></i> All Clear</span>
+            <span><i class="dot assist"></i> Accepted (Pending Nurse)</span>
+            <span><i class="dot urgent"></i> Request Unanswered</span>
+            <span><i class="dot offline"></i> Empty Bed</span>
+            <span><i class="dot request-dot"></i> Request Needs Response</span>
+          </div>
+        </header>
+
+        <section class="ward-grid">
+          <article class="ward-card empty" data-bed="Bed 1">
+            <h3>Bed 1</h3>
+            <div class="count"></div>
+            <p>Empty Bed</p>
+            <div class="ward-details">
+              <strong>Bed 1 Details</strong>
+              <span>Patient: Unassigned</span>
+              <span>Assigned Nurse: -</span>
+              <span>Status: Ready for admission</span>
+            </div>
+          </article>
+          <article class="ward-card empty" data-bed="Bed 2">
+            <h3>Bed 2</h3>
+            <div class="count"></div>
+            <p>Empty Bed</p>
+            <div class="ward-details">
+              <strong>Bed 2 Details</strong>
+              <span>Patient: Unassigned</span>
+              <span>Assigned Nurse: -</span>
+              <span>Status: Ready for cleaning check</span>
+            </div>
+          </article>
+          <article class="ward-card normal" data-bed="Bed 3">
+            <h3>Bed 3</h3>
+            <div class="count"></div>
+            <p>Low Risk</p>
+            <div class="ward-details">
+              <strong>Bed 3 Details</strong>
+              <span>Patient: No mobility issues</span>
+              <span>Assigned Nurse: Priya Nair</span>
+              <span>Last Alert: None today</span>
+            </div>
+          </article>
+          <article class="ward-card normal" data-bed="Bed 4">
+            <h3>Bed 4</h3>
+            <div class="count"></div>
+            <p>Low Risk</p>
+            <div class="ward-details">
+              <strong>Bed 4 Details</strong>
+              <span>Patient: Stable observation</span>
+              <span>Assigned Nurse: Aisyah Rahman</span>
+              <span>Last Alert: 9:13 AM</span>
+            </div>
+          </article>
+          <article class="ward-card normal" data-bed="Bed 5">
+            <h3>Bed 5</h3>
+            <div class="count"></div>
+            <p>Low Risk</p>
+            <div class="ward-details">
+              <strong>Bed 5 Details</strong>
+              <span>Patient: Recovering well</span>
+              <span>Assigned Nurse: Kelvin Tan</span>
+              <span>Last Alert: None today</span>
+            </div>
+          </article>
+          <article class="ward-card normal" data-bed="Bed 6">
+            <h3>Bed 6</h3>
+            <div class="count"></div>
+            <p>Low Risk</p>
+            <div class="ward-details">
+              <strong>Bed 6 Details</strong>
+              <span>Patient: Independent mobility</span>
+              <span>Assigned Nurse: Mei Chen</span>
+              <span>Last Alert: 8:48 AM</span>
+            </div>
+          </article>
+          <article class="ward-card assist" data-bed="Bed 7">
+            <h3>Bed 7</h3>
+            <div class="count"></div>
+            <p>Medium Risk</p>
+            <div class="ward-details">
+              <strong>Bed 7 Details</strong>
+              <span>Needs: Assisted movement</span>
+              <span>Assigned Nurse: Farid Ismail</span>
+              <span>Monitoring: Every 2 hrs</span>
+            </div>
+          </article>
+          <article class="ward-card assist" data-bed="Bed 8">
+            <h3>Bed 8</h3>
+            <div class="count"></div>
+            <p>Medium Risk</p>
+            <div class="ward-details">
+              <strong>Bed 8 Details</strong>
+              <span>Needs: Fall precaution</span>
+              <span>Assigned Nurse: Alice Wong</span>
+              <span>Active Request: Toilet request pending</span>
+            </div>
+          </article>
+          <article class="ward-card assist" data-bed="Bed 9">
+            <h3>Bed 9</h3>
+            <div class="count"></div>
+            <p>Medium Risk</p>
+            <div class="ward-details">
+              <strong>Bed 9 Details</strong>
+              <span>Needs: Gait support</span>
+              <span>Assigned Nurse: Nora Devi</span>
+              <span>Monitoring: Every 1 hr</span>
+            </div>
+          </article>
+          <article class="ward-card urgent" data-bed="Bed 10">
+            <h3>Bed 10</h3>
+            <div class="count"></div>
+            <p>High Risk</p>
+            <div class="ward-details">
+              <strong>Bed 10 Details</strong>
+              <span>Risk: Prior fall history</span>
+              <span>Assigned Nurse: Jeremy Chia</span>
+              <span>Active Request: Help request unanswered</span>
+            </div>
+          </article>
+          <article class="ward-card urgent is-selected" data-bed="Bed 11">
+            <h3>Bed 11</h3>
+            <div class="count"></div>
+            <p>High Risk</p>
+            <div class="ward-details">
+              <strong>Bed 11 Details</strong>
+              <span>Risk: Post-op instability</span>
+              <span>Assigned Nurse: Rina Das</span>
+              <span>Response Priority: Immediate</span>
+            </div>
+          </article>
+          <article class="ward-card empty" data-bed="Bed 12">
+            <h3>Bed 12</h3>
+            <div class="count"></div>
+            <p>Empty Bed</p>
+            <div class="ward-details">
+              <strong>Bed 12 Details</strong>
+              <span>Patient: Unassigned</span>
+              <span>Assigned Nurse: -</span>
+              <span>Status: Available</span>
+            </div>
+          </article>
+          <article class="ward-card empty" data-bed="Bed 13">
+            <h3>Bed 13</h3>
+            <div class="count"></div>
+            <p>Empty Bed</p>
+            <div class="ward-details">
+              <strong>Bed 13 Details</strong>
+              <span>Patient: Unassigned</span>
+              <span>Assigned Nurse: -</span>
+              <span>Status: Ready</span>
+            </div>
+          </article>
+          <article class="ward-card empty" data-bed="Bed 14">
+            <h3>Bed 14</h3>
+            <div class="count"></div>
+            <p>Empty Bed</p>
+            <div class="ward-details">
+              <strong>Bed 14 Details</strong>
+              <span>Patient: Unassigned</span>
+              <span>Assigned Nurse: -</span>
+              <span>Status: Ready</span>
+            </div>
+          </article>
+          <article class="ward-card empty" data-bed="Bed 15">
+            <h3>Bed 15</h3>
+            <div class="count"></div>
+            <p>Empty Bed</p>
+            <div class="ward-details">
+              <strong>Bed 15 Details</strong>
+              <span>Patient: Unassigned</span>
+              <span>Assigned Nurse: -</span>
+              <span>Status: Ready</span>
+            </div>
+          </article>
+          <article class="ward-card empty" data-bed="Bed 16">
+            <h3>Bed 16</h3>
+            <div class="count"></div>
+            <p>Empty Bed</p>
+            <div class="ward-details">
+              <strong>Bed 16 Details</strong>
+              <span>Patient: Unassigned</span>
+              <span>Assigned Nurse: -</span>
+              <span>Status: Ready</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="requests">
+          <div class="requests-head">
+            <h2>Recent Requests</h2>
+            <a href="#">View All</a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Patient</th>
+                  <th>Bed</th>
+                  <th>Request Type</th>
+                  <th>Request Indicator</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>10:24 AM</td>
+                  <td>Mr. Tan Ah Kow</td>
+                  <td>Bed 11</td>
+                  <td>Toilet</td>
+                  <td><span class="pill high">Unanswered</span></td>
+                  <td><span class="pill waiting">Pending</span></td>
+                </tr>
+                <tr>
+                  <td>10:21 AM</td>
+                  <td>Madam Lim Siew Lin</td>
+                  <td>Bed 8</td>
+                  <td>Toilet</td>
+                  <td><span class="pill moderate">Accepted</span></td>
+                  <td><span class="pill waiting">Pending</span></td>
+                </tr>
+                <tr>
+                  <td>10:18 AM</td>
+                  <td>Mr. Lee Cheng Wei</td>
+                  <td>Bed 10</td>
+                  <td>Help</td>
+                  <td><span class="pill high">Unanswered</span></td>
+                  <td><span class="pill urgent-state">Urgent</span></td>
+                </tr>
+                <tr>
+                  <td>10:15 AM</td>
+                  <td>Ms. Aisha Binte Rahman</td>
+                  <td>Bed 9</td>
+                  <td>Toilet</td>
+                  <td><span class="pill moderate">Accepted</span></td>
+                  <td><span class="pill waiting">Pending</span></td>
+                </tr>
+                <tr>
+                  <td>10:10 AM</td>
+                  <td>Mr. Kumar S/O Rajan</td>
+                  <td>Bed 5</td>
+                  <td>Help</td>
+                  <td><span class="pill low">All Clear</span></td>
+                  <td><span class="pill done">Completed</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <aside class="profile">
+        <header class="profile-head">
+          <h2>Patient Details</h2>
+          <button aria-label="Close">x</button>
+        </header>
+
+        <section class="patient-id">
+          <img
+            id="patientPhoto"
+            alt="Patient portrait"
+            src="https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&w=140&q=80"
+          />
+          <div>
+            <h3 id="patientName">Mr. Tan Ah Kow</h3>
+            <p id="patientNric">NRIC: 12345678</p>
+            <p id="patientAgeGender">78 Years - Male</p>
+            <p id="patientBed">Bed 11</p>
+          </div>
+          <span id="patientRiskFlag" class="risk-flag high">High Risk</span>
+        </section>
+
+        <section class="event-card">
+          <h4 id="eventType">Toilet Request</h4>
+          <p id="eventTime">Requested at 10:24 AM</p>
+          <span id="eventAgo">3 min ago</span>
+        </section>
+
+        <section class="risk-panel">
+          <div class="risk-score">
+            <p class="risk-label">Risk Classification</p>
+            <strong id="riskLevelText">High Risk</strong>
+          </div>
+          <ul>
+            <li><span>History of Falling</span><b id="riskHistory">Yes</b></li>
+            <li><span>Secondary Diagnosis</span><b id="riskSecondary">Yes</b></li>
+            <li><span>Ambulatory Aid</span><b id="riskAmbulatory">Yes</b></li>
+            <li><span>IV Therapy</span><b id="riskIv">No</b></li>
+          </ul>
+        </section>
+
+        <section class="patient-info">
+          <h4>Patient Information</h4>
+          <p><span>Diagnosis</span><b id="infoDiagnosis">Post-op Knee Replacement</b></p>
+          <p><span>Mobility</span><b id="infoMobility">Needs Assistance</b></p>
+          <p><span>Fall History</span><b id="infoFallHistory">Yes (Within 6 months)</b></p>
+          <p><span>Allergies</span><b id="infoAllergies">No Known Allergies</b></p>
+        </section>
+
+        <section class="actions">
+          <div id="actionBanner" class="action-banner high">Assistance Recommended</div>
+          <div class="action-buttons">
+            <button id="approveRailsBtn" class="assist-btn">Approve & Lower Rails</button>
+            <button class="wait-btn">Hold / Wait Nurse</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="/firebase-config.js"></script>
+    <script src="/bed-details.js"></script>
+  </body>
+</html>
+
+
