@@ -889,6 +889,10 @@ function setSelectedBedAllClear() {
     toneSuppressedUntilByBedId.set(bedId, Date.now() + APPROVE_TONE_SUPPRESS_MS);
   }
   saveCardStatusToFirestore(bedId, nextStatus);
+
+  if (hardwareSocket) {
+    hardwareSocket.emit("serial-write", { message: "MOTOR_APPROVE" });
+  }
 }
 
 function randomBedStatus() {
@@ -930,12 +934,27 @@ function activateBedById(bedId) {
   renderBed(bedId);
 }
 
+function deactivateBedById(bedId) {
+  const targetCard = cards.find((card) => card.dataset.bed === bedId);
+  if (!targetCard) return;
+
+  const risk = wardSetupById.get(bedId)?.risk || "empty";
+  const nextStatus = {
+    ...defaultCardStateForRisk(risk),
+    isOn: false
+  };
+  applyStatusToCard(targetCard, nextStatus);
+  saveCardStatusToFirestore(bedId, nextStatus);
+}
+
 function triggerRandomFromD2() {
   const now = Date.now();
   if (now - lastD2UiTriggerAt < D2_UI_TRIGGER_DEBOUNCE_MS) return;
   lastD2UiTriggerAt = now;
   const targetBedId = D2_TARGET_BEDS[nextD2TargetIndex];
+  const otherBedId = D2_TARGET_BEDS[(nextD2TargetIndex + 1) % D2_TARGET_BEDS.length];
   nextD2TargetIndex = (nextD2TargetIndex + 1) % D2_TARGET_BEDS.length;
+  deactivateBedById(otherBedId);
   activateBedById(targetBedId);
 }
 
@@ -1014,7 +1033,6 @@ if (hardwareSocket) {
     const parsedD2 = String(parsed.D2 || parsed.d2 || "").toUpperCase();
     if (raw === "D2=PRESSED" || parsedD2 === "PRESSED" || parsedD2 === "1") {
       markD2Received();
-      triggerRandomFromD2();
     }
   });
 
