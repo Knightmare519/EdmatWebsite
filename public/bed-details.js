@@ -296,11 +296,15 @@ const ui = {
   infoAllergies: document.getElementById("infoAllergies"),
   actionBanner: document.getElementById("actionBanner"),
   approveRailsBtn: document.getElementById("approveRailsBtn"),
-  randomNotifyBtn: document.getElementById("randomNotifyBtn")
+  randomNotifyBtn: document.getElementById("randomNotifyBtn"),
+  d2DebugPill: document.getElementById("d2DebugPill")
 };
 const hardwareSocket = typeof window.io === "function" ? window.io() : null;
 let lastD2UiTriggerAt = 0;
 const D2_UI_TRIGGER_DEBOUNCE_MS = 300;
+const D2_TARGET_BEDS = ["Bed 5", "Bed 11"];
+let nextD2TargetIndex = 0;
+let d2PillResetTimer = null;
 
 const firestoreState = {
   enabled: false,
@@ -897,16 +901,20 @@ function randomBedStatus() {
 
   const targetPool = offBedIds.length ? offBedIds : patientBedIds;
   const randomBedId = targetPool[Math.floor(Math.random() * targetPool.length)];
-  const randomCard = cards.find((card) => card.dataset.bed === randomBedId);
-  if (!randomCard) return;
+  activateBedById(randomBedId);
+}
 
-  const risk = wardSetupById.get(randomBedId)?.risk || "empty";
+function activateBedById(bedId) {
+  const targetCard = cards.find((card) => card.dataset.bed === bedId);
+  if (!targetCard) return;
+
+  const risk = wardSetupById.get(bedId)?.risk || "empty";
   const nextStatus = {
     ...defaultCardStateForRisk(risk),
     isOn: true
   };
-  applyStatusToCard(randomCard, nextStatus);
-  saveCardStatusToFirestore(randomBedId, nextStatus);
+  applyStatusToCard(targetCard, nextStatus);
+  saveCardStatusToFirestore(bedId, nextStatus);
 
   cards.forEach((card) => card.classList.remove("is-lit"));
   if (litBedClearTimer) {
@@ -914,19 +922,21 @@ function randomBedStatus() {
     litBedClearTimer = null;
   }
 
-  randomCard.classList.add("is-lit");
+  targetCard.classList.add("is-lit");
   litBedClearTimer = setTimeout(() => {
-    randomCard.classList.remove("is-lit");
+    targetCard.classList.remove("is-lit");
   }, 1400);
 
-  renderBed(randomBedId);
+  renderBed(bedId);
 }
 
 function triggerRandomFromD2() {
   const now = Date.now();
   if (now - lastD2UiTriggerAt < D2_UI_TRIGGER_DEBOUNCE_MS) return;
   lastD2UiTriggerAt = now;
-  randomBedStatus();
+  const targetBedId = D2_TARGET_BEDS[nextD2TargetIndex];
+  nextD2TargetIndex = (nextD2TargetIndex + 1) % D2_TARGET_BEDS.length;
+  activateBedById(targetBedId);
 }
 
 function renderCurrentWardSetup() {
@@ -973,11 +983,27 @@ if (ui.randomNotifyBtn) {
   ui.randomNotifyBtn.addEventListener("click", randomBedStatus);
 }
 
+function setD2Pill(state, text) {
+  if (!ui.d2DebugPill) return;
+  ui.d2DebugPill.classList.remove("active", "ok", "error");
+  if (state) ui.d2DebugPill.classList.add(state);
+  ui.d2DebugPill.textContent = text;
+}
+
+function markD2Received() {
+  const stamp = new Date().toLocaleTimeString();
+  setD2Pill("active", `D2: ${stamp}`);
+  if (d2PillResetTimer) clearTimeout(d2PillResetTimer);
+  d2PillResetTimer = setTimeout(() => setD2Pill("ok", "D2: Listening"), 1500);
+}
+
 if (hardwareSocket) {
+  setD2Pill("ok", "D2: Connecting");
   hardwareSocket.emit("auto-connect-serial", { baudRate: 9600 });
 
   hardwareSocket.on("hardware-trigger", (payload) => {
     if (payload?.source === "D2") {
+      markD2Received();
       triggerRandomFromD2();
     }
   });
@@ -987,17 +1013,29 @@ if (hardwareSocket) {
     const parsed = payload?.parsed || {};
     const parsedD2 = String(parsed.D2 || parsed.d2 || "").toUpperCase();
     if (raw === "D2=PRESSED" || parsedD2 === "PRESSED" || parsedD2 === "1") {
+      markD2Received();
       triggerRandomFromD2();
     }
   });
 
   hardwareSocket.on("serial-message", (payload) => {
-    if (payload?.message) console.info(payload.message);
+    if (payload?.message) {
+      console.info(payload.message);
+
+      if (String(payload.message).toLowerCase().includes("connected")) {
+        setD2Pill("ok", "D2: Listening");
+      }
+    }
   });
 
   hardwareSocket.on("serial-error", (payload) => {
-    if (payload?.message) console.error("Serial error:", payload.message);
+    if (payload?.message) {
+      console.error("Serial error:", payload.message);
+      setD2Pill("error", "D2: Serial Error");
+    }
   });
+} else {
+  setD2Pill("error", "D2: Socket Off");
 }
 
 const themeToggle = document.getElementById("themeToggle");

@@ -367,6 +367,17 @@ body {
   border-color: var(--risk);
 }
 
+.ward-card.is-on.empty {
+  box-shadow:
+    0 0 0 2px rgba(143, 153, 170, 0.26),
+    0 10px 24px rgba(71, 84, 106, 0.2);
+}
+
+.ward-card.is-on.empty .count {
+  background: #8f99aa;
+  border-color: #8f99aa;
+}
+
 .ward-card.normal {
   border-color: #d9efdf;
 }
