@@ -890,9 +890,23 @@ function setSelectedBedAllClear() {
 function randomBedStatus() {
   if (!patientBedIds.length) return;
 
-  const randomBedId = patientBedIds[Math.floor(Math.random() * patientBedIds.length)];
+  const offBedIds = patientBedIds.filter((bedId) => {
+    const card = cards.find((item) => item.dataset.bed === bedId);
+    return card && !card.classList.contains("is-on");
+  });
+
+  const targetPool = offBedIds.length ? offBedIds : patientBedIds;
+  const randomBedId = targetPool[Math.floor(Math.random() * targetPool.length)];
   const randomCard = cards.find((card) => card.dataset.bed === randomBedId);
   if (!randomCard) return;
+
+  const risk = wardSetupById.get(randomBedId)?.risk || "empty";
+  const nextStatus = {
+    ...defaultCardStateForRisk(risk),
+    isOn: true
+  };
+  applyStatusToCard(randomCard, nextStatus);
+  saveCardStatusToFirestore(randomBedId, nextStatus);
 
   cards.forEach((card) => card.classList.remove("is-lit"));
   if (litBedClearTimer) {

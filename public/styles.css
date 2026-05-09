@@ -99,6 +99,36 @@ body {
   gap: 8px;
 }
 
+.d2-debug-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #cad7e8;
+  background: #f6f9ff;
+  color: #36506f;
+  min-width: 74px;
+  text-align: center;
+}
+
+.d2-debug-pill.active {
+  border-color: #f4c778;
+  background: #fff4dd;
+  color: #8a5f00;
+}
+
+.d2-debug-pill.ok {
+  border-color: #9dd9bc;
+  background: #e7f7ee;
+  color: #1e7f52;
+}
+
+.d2-debug-pill.error {
+  border-color: #f1a4a4;
+  background: #fde8e8;
+  color: #a63636;
+}
+
 .layout {
   width: min(1280px, 96%);
   margin: 12px auto 18px;
