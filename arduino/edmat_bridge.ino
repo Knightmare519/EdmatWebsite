@@ -5,12 +5,15 @@
   - Reads A0 every second and sends serial lines like: sensor=A0,value=512
   - Reads D2 push button and sends: D2=PRESSED
   - Pulses buzzer on D6 for 0.3s when D2 is pressed
-  - Drives servos on D8 and D9 in opposite 180deg directions on approve command
+  - Drives continuous servos on D8 and D9 in opposite directions on approve command
+  - Lights D11 for low-risk approve, D12 for moderate/high-risk approve
   - Accepts commands from website:
       LED_ON
       LED_OFF
       READ_NOW
       MOTOR_APPROVE
+      APPROVE_LOW
+      APPROVE_ELEVATED
 */
 
 const int LED_PIN = LED_BUILTIN;
@@ -19,11 +22,16 @@ const int BUTTON_PIN = 2;
 const int BUZZER_PIN = 6;
 const int MOTOR_A_PIN = 8;
 const int MOTOR_B_PIN = 9;
+const int LOW_RISK_LED_PIN = 11;
+const int ELEVATED_RISK_LED_PIN = 12;
 
-const int MOTOR_A_HOME_DEG = 0;
-const int MOTOR_B_HOME_DEG = 180;
-const int MOTOR_A_ACTIVE_DEG = 180;
-const int MOTOR_B_ACTIVE_DEG = 0;
+const int SERVO_STOP = 90;
+const int MOTOR_A_FORWARD = 100;
+const int MOTOR_A_REVERSE = 80;
+const int MOTOR_B_FORWARD = 80;
+const int MOTOR_B_REVERSE = 100;
+const unsigned long MOTOR_SPIN_MS = 1000;
+const unsigned long MOTOR_RETURN_WAIT_MS = 5000;
 
 int lastButtonReading = HIGH;
 unsigned long lastButtonDebounceAt = 0;
@@ -35,23 +43,38 @@ const unsigned long READ_INTERVAL_MS = 1000;
 unsigned long buzzerOffAt = 0;
 const unsigned long BUZZ_DURATION_MS = 300;
 
-unsigned long motorReturnAt = 0;
-const unsigned long MOTOR_RETURN_WAIT_MS = 5000;
-bool motorCycleActive = false;
+enum MotorCycleState {
+  MOTOR_IDLE,
+  MOTOR_SPIN_OUT,
+  MOTOR_WAIT_BEFORE_RETURN,
+  MOTOR_SPIN_BACK
+};
+
+MotorCycleState motorState = MOTOR_IDLE;
+unsigned long motorPhaseAt = 0;
 
 Servo motorA;
 Servo motorB;
 
-void moveMotorsHome() {
-  motorA.write(MOTOR_A_HOME_DEG);
-  motorB.write(MOTOR_B_HOME_DEG);
+void stopMotors() {
+  motorA.write(SERVO_STOP);
+  motorB.write(SERVO_STOP);
+}
+
+void spinMotorsOut() {
+  motorA.write(MOTOR_A_FORWARD);
+  motorB.write(MOTOR_B_FORWARD);
+}
+
+void spinMotorsBack() {
+  motorA.write(MOTOR_A_REVERSE);
+  motorB.write(MOTOR_B_REVERSE);
 }
 
 void triggerMotorApproveCycle() {
-  motorA.write(MOTOR_A_ACTIVE_DEG);
-  motorB.write(MOTOR_B_ACTIVE_DEG);
-  motorReturnAt = millis() + MOTOR_RETURN_WAIT_MS;
-  motorCycleActive = true;
+  spinMotorsOut();
+  motorState = MOTOR_SPIN_OUT;
+  motorPhaseAt = millis() + MOTOR_SPIN_MS;
   Serial.println("motor=active");
 }
 
@@ -64,9 +87,14 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
+  pinMode(LOW_RISK_LED_PIN, OUTPUT);
+  pinMode(ELEVATED_RISK_LED_PIN, OUTPUT);
+  digitalWrite(LOW_RISK_LED_PIN, LOW);
+  digitalWrite(ELEVATED_RISK_LED_PIN, LOW);
+
   motorA.attach(MOTOR_A_PIN);
   motorB.attach(MOTOR_B_PIN);
-  moveMotorsHome();
+  stopMotors();
 
   Serial.begin(9600);
   delay(300);
@@ -93,6 +121,14 @@ void handleCommand(String cmd) {
     sendReading();
   } else if (cmd == "MOTOR_APPROVE") {
     triggerMotorApproveCycle();
+  } else if (cmd == "APPROVE_LOW") {
+    digitalWrite(LOW_RISK_LED_PIN, HIGH);
+    digitalWrite(ELEVATED_RISK_LED_PIN, LOW);
+    Serial.println("approve_led=low");
+  } else if (cmd == "APPROVE_ELEVATED") {
+    digitalWrite(LOW_RISK_LED_PIN, LOW);
+    digitalWrite(ELEVATED_RISK_LED_PIN, HIGH);
+    Serial.println("approve_led=elevated");
   } else if (cmd.length() > 0) {
     Serial.print("unknown=");
     Serial.println(cmd);
@@ -128,11 +164,23 @@ void loop() {
     buzzerOffAt = 0;
   }
 
-  if (motorCycleActive && millis() >= motorReturnAt) {
-    moveMotorsHome();
-    motorCycleActive = false;
-    motorReturnAt = 0;
-    Serial.println("motor=home");
+  if (motorState != MOTOR_IDLE && millis() >= motorPhaseAt) {
+    if (motorState == MOTOR_SPIN_OUT) {
+      stopMotors();
+      motorState = MOTOR_WAIT_BEFORE_RETURN;
+      motorPhaseAt = millis() + MOTOR_RETURN_WAIT_MS;
+      Serial.println("motor=wait");
+    } else if (motorState == MOTOR_WAIT_BEFORE_RETURN) {
+      spinMotorsBack();
+      motorState = MOTOR_SPIN_BACK;
+      motorPhaseAt = millis() + MOTOR_SPIN_MS;
+      Serial.println("motor=return");
+    } else if (motorState == MOTOR_SPIN_BACK) {
+      stopMotors();
+      motorState = MOTOR_IDLE;
+      motorPhaseAt = 0;
+      Serial.println("motor=home");
+    }
   }
 
   unsigned long now = millis();

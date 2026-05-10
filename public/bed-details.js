@@ -297,7 +297,9 @@ const ui = {
   actionBanner: document.getElementById("actionBanner"),
   approveRailsBtn: document.getElementById("approveRailsBtn"),
   randomNotifyBtn: document.getElementById("randomNotifyBtn"),
-  d2DebugPill: document.getElementById("d2DebugPill")
+  d2DebugPill: document.getElementById("d2DebugPill"),
+  motorDebugPill: document.getElementById("motorDebugPill"),
+  ledDebugPill: document.getElementById("ledDebugPill")
 };
 const hardwareSocket = typeof window.io === "function" ? window.io() : null;
 let lastD2UiTriggerAt = 0;
@@ -865,6 +867,8 @@ function setSelectedBedAllClear() {
   if (!selectedCard) return;
 
   if (selectedCard.classList.contains("empty")) return;
+  const selectedBedId = selectedCard.dataset.bed;
+  const selectedRisk = wardSetupById.get(selectedBedId)?.risk || "empty";
 
   const nextStatus = {
     cardType: "normal",
@@ -892,6 +896,8 @@ function setSelectedBedAllClear() {
 
   if (hardwareSocket) {
     hardwareSocket.emit("serial-write", { message: "MOTOR_APPROVE" });
+    const riskCommand = selectedRisk === "low" ? "APPROVE_LOW" : "APPROVE_ELEVATED";
+    hardwareSocket.emit("serial-write", { message: riskCommand });
   }
 }
 
@@ -1009,6 +1015,20 @@ function setD2Pill(state, text) {
   ui.d2DebugPill.textContent = text;
 }
 
+function setMotorPill(state, text) {
+  if (!ui.motorDebugPill) return;
+  ui.motorDebugPill.classList.remove("active", "ok", "error");
+  if (state) ui.motorDebugPill.classList.add(state);
+  ui.motorDebugPill.textContent = text;
+}
+
+function setLedPill(state, text) {
+  if (!ui.ledDebugPill) return;
+  ui.ledDebugPill.classList.remove("active", "ok", "error");
+  if (state) ui.ledDebugPill.classList.add(state);
+  ui.ledDebugPill.textContent = text;
+}
+
 function markD2Received() {
   const stamp = new Date().toLocaleTimeString();
   setD2Pill("active", `D2: ${stamp}`);
@@ -1018,6 +1038,8 @@ function markD2Received() {
 
 if (hardwareSocket) {
   setD2Pill("ok", "D2: Connecting");
+  setMotorPill("ok", "Motor: Listening");
+  setLedPill("ok", "LED: Listening");
   hardwareSocket.emit("auto-connect-serial", { baudRate: 9600 });
 
   hardwareSocket.on("hardware-trigger", (payload) => {
@@ -1031,8 +1053,26 @@ if (hardwareSocket) {
     const raw = String(payload?.raw || "").toUpperCase();
     const parsed = payload?.parsed || {};
     const parsedD2 = String(parsed.D2 || parsed.d2 || "").toUpperCase();
+    const parsedMotor = String(parsed.motor || parsed.MOTOR || "").toUpperCase();
+    const parsedApproveLed = String(parsed.approve_led || parsed.APPROVE_LED || "").toUpperCase();
     if (raw === "D2=PRESSED" || parsedD2 === "PRESSED" || parsedD2 === "1") {
       markD2Received();
+    }
+
+    if (parsedMotor === "ACTIVE") {
+      setMotorPill("active", "Motor: Active");
+    } else if (parsedMotor === "WAIT") {
+      setMotorPill("ok", "Motor: Waiting 5s");
+    } else if (parsedMotor === "RETURN") {
+      setMotorPill("active", "Motor: Returning");
+    } else if (parsedMotor === "HOME") {
+      setMotorPill("ok", "Motor: Home");
+    }
+
+    if (parsedApproveLed === "LOW") {
+      setLedPill("ok", "LED: D11 LOW");
+    } else if (parsedApproveLed === "ELEVATED") {
+      setLedPill("active", "LED: D12 MID/HIGH");
     }
   });
 
@@ -1042,6 +1082,8 @@ if (hardwareSocket) {
 
       if (String(payload.message).toLowerCase().includes("connected")) {
         setD2Pill("ok", "D2: Listening");
+        setMotorPill("ok", "Motor: Listening");
+        setLedPill("ok", "LED: Listening");
       }
     }
   });
@@ -1050,10 +1092,14 @@ if (hardwareSocket) {
     if (payload?.message) {
       console.error("Serial error:", payload.message);
       setD2Pill("error", "D2: Serial Error");
+      setMotorPill("error", "Motor: Serial Error");
+      setLedPill("error", "LED: Serial Error");
     }
   });
 } else {
   setD2Pill("error", "D2: Socket Off");
+  setMotorPill("error", "Motor: Socket Off");
+  setLedPill("error", "LED: Socket Off");
 }
 
 const themeToggle = document.getElementById("themeToggle");
