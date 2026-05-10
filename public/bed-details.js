@@ -296,6 +296,7 @@ const ui = {
   infoAllergies: document.getElementById("infoAllergies"),
   actionBanner: document.getElementById("actionBanner"),
   approveRailsBtn: document.getElementById("approveRailsBtn"),
+  waitNurseBtn: document.getElementById("waitNurseBtn"),
   randomNotifyBtn: document.getElementById("randomNotifyBtn"),
   d2DebugPill: document.getElementById("d2DebugPill"),
   motorDebugPill: document.getElementById("motorDebugPill"),
@@ -867,8 +868,6 @@ function setSelectedBedAllClear() {
   if (!selectedCard) return;
 
   if (selectedCard.classList.contains("empty")) return;
-  const selectedBedId = selectedCard.dataset.bed;
-  const selectedRisk = wardSetupById.get(selectedBedId)?.risk || "empty";
 
   const nextStatus = {
     cardType: "normal",
@@ -896,9 +895,13 @@ function setSelectedBedAllClear() {
 
   if (hardwareSocket) {
     hardwareSocket.emit("serial-write", { message: "MOTOR_APPROVE" });
-    const riskCommand = selectedRisk === "low" ? "APPROVE_LOW" : "APPROVE_ELEVATED";
-    hardwareSocket.emit("serial-write", { message: riskCommand });
+    hardwareSocket.emit("serial-write", { message: "APPROVE_GREEN" });
   }
+}
+
+function handleWaitNurseClick() {
+  if (!hardwareSocket) return;
+  hardwareSocket.emit("serial-write", { message: "WAIT_YELLOW" });
 }
 
 function randomBedStatus() {
@@ -1004,6 +1007,10 @@ if (ui.approveRailsBtn) {
   ui.approveRailsBtn.addEventListener("click", setSelectedBedAllClear);
 }
 
+if (ui.waitNurseBtn) {
+  ui.waitNurseBtn.addEventListener("click", handleWaitNurseClick);
+}
+
 if (ui.randomNotifyBtn) {
   ui.randomNotifyBtn.addEventListener("click", randomBedStatus);
 }
@@ -1054,7 +1061,7 @@ if (hardwareSocket) {
     const parsed = payload?.parsed || {};
     const parsedD2 = String(parsed.D2 || parsed.d2 || "").toUpperCase();
     const parsedMotor = String(parsed.motor || parsed.MOTOR || "").toUpperCase();
-    const parsedApproveLed = String(parsed.approve_led || parsed.APPROVE_LED || "").toUpperCase();
+    const parsedActionLed = String(parsed.action_led || parsed.ACTION_LED || "").toUpperCase();
     if (raw === "D2=PRESSED" || parsedD2 === "PRESSED" || parsedD2 === "1") {
       markD2Received();
     }
@@ -1069,10 +1076,12 @@ if (hardwareSocket) {
       setMotorPill("ok", "Motor: Home");
     }
 
-    if (parsedApproveLed === "LOW") {
-      setLedPill("ok", "LED: D11 LOW");
-    } else if (parsedApproveLed === "ELEVATED") {
-      setLedPill("active", "LED: D12 MID/HIGH");
+    if (parsedActionLed === "GREEN") {
+      setLedPill("ok", "LED: D11 Green");
+    } else if (parsedActionLed === "YELLOW") {
+      setLedPill("active", "LED: D12 Yellow");
+    } else if (parsedActionLed === "OFF") {
+      setLedPill("ok", "LED: Off");
     }
   });
 

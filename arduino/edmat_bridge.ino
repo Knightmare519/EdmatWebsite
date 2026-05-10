@@ -6,14 +6,14 @@
   - Reads D2 push button and sends: D2=PRESSED
   - Pulses buzzer on D6 for 0.3s when D2 is pressed
   - Drives continuous servos on D8 and D9 in opposite directions on approve command
-  - Lights D11 for low-risk approve, D12 for moderate/high-risk approve
+  - Lights D11 (green) on approve and D12 (yellow) on wait, auto-off after 5s
   - Accepts commands from website:
       LED_ON
       LED_OFF
       READ_NOW
       MOTOR_APPROVE
-      APPROVE_LOW
-      APPROVE_ELEVATED
+      APPROVE_GREEN
+      WAIT_YELLOW
 */
 
 const int LED_PIN = LED_BUILTIN;
@@ -22,8 +22,8 @@ const int BUTTON_PIN = 2;
 const int BUZZER_PIN = 6;
 const int MOTOR_A_PIN = 8;
 const int MOTOR_B_PIN = 9;
-const int LOW_RISK_LED_PIN = 11;
-const int ELEVATED_RISK_LED_PIN = 12;
+const int GREEN_LED_PIN = 11;
+const int YELLOW_LED_PIN = 12;
 
 const int SERVO_STOP = 90;
 const int MOTOR_A_FORWARD = 100;
@@ -42,6 +42,8 @@ const unsigned long READ_INTERVAL_MS = 1000;
 
 unsigned long buzzerOffAt = 0;
 const unsigned long BUZZ_DURATION_MS = 300;
+unsigned long actionLedOffAt = 0;
+const unsigned long ACTION_LED_DURATION_MS = 5000;
 
 enum MotorCycleState {
   MOTOR_IDLE,
@@ -78,6 +80,14 @@ void triggerMotorApproveCycle() {
   Serial.println("motor=active");
 }
 
+void setActionLeds(bool greenOn, bool yellowOn, const char* stateLabel) {
+  digitalWrite(GREEN_LED_PIN, greenOn ? HIGH : LOW);
+  digitalWrite(YELLOW_LED_PIN, yellowOn ? HIGH : LOW);
+  actionLedOffAt = millis() + ACTION_LED_DURATION_MS;
+  Serial.print("action_led=");
+  Serial.println(stateLabel);
+}
+
 void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
@@ -87,10 +97,10 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
-  pinMode(LOW_RISK_LED_PIN, OUTPUT);
-  pinMode(ELEVATED_RISK_LED_PIN, OUTPUT);
-  digitalWrite(LOW_RISK_LED_PIN, LOW);
-  digitalWrite(ELEVATED_RISK_LED_PIN, LOW);
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(YELLOW_LED_PIN, OUTPUT);
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, LOW);
 
   motorA.attach(MOTOR_A_PIN);
   motorB.attach(MOTOR_B_PIN);
@@ -121,14 +131,10 @@ void handleCommand(String cmd) {
     sendReading();
   } else if (cmd == "MOTOR_APPROVE") {
     triggerMotorApproveCycle();
-  } else if (cmd == "APPROVE_LOW") {
-    digitalWrite(LOW_RISK_LED_PIN, HIGH);
-    digitalWrite(ELEVATED_RISK_LED_PIN, LOW);
-    Serial.println("approve_led=low");
-  } else if (cmd == "APPROVE_ELEVATED") {
-    digitalWrite(LOW_RISK_LED_PIN, LOW);
-    digitalWrite(ELEVATED_RISK_LED_PIN, HIGH);
-    Serial.println("approve_led=elevated");
+  } else if (cmd == "APPROVE_GREEN") {
+    setActionLeds(true, false, "green");
+  } else if (cmd == "WAIT_YELLOW") {
+    setActionLeds(false, true, "yellow");
   } else if (cmd.length() > 0) {
     Serial.print("unknown=");
     Serial.println(cmd);
@@ -162,6 +168,13 @@ void loop() {
   if (buzzerOffAt > 0 && millis() >= buzzerOffAt) {
     digitalWrite(BUZZER_PIN, LOW);
     buzzerOffAt = 0;
+  }
+
+  if (actionLedOffAt > 0 && millis() >= actionLedOffAt) {
+    digitalWrite(GREEN_LED_PIN, LOW);
+    digitalWrite(YELLOW_LED_PIN, LOW);
+    actionLedOffAt = 0;
+    Serial.println("action_led=off");
   }
 
   if (motorState != MOTOR_IDLE && millis() >= motorPhaseAt) {
