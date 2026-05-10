@@ -301,7 +301,8 @@ const ui = {
   d2DebugPill: document.getElementById("d2DebugPill"),
   motorDebugPill: document.getElementById("motorDebugPill"),
   ledDebugPill: document.getElementById("ledDebugPill"),
-  redDebugPill: document.getElementById("redDebugPill")
+  redDebugPill: document.getElementById("redDebugPill"),
+  autoApproveDebugPill: document.getElementById("autoApproveDebugPill")
 };
 const hardwareSocket = typeof window.io === "function" ? window.io() : null;
 let lastD2UiTriggerAt = 0;
@@ -309,6 +310,11 @@ const D2_UI_TRIGGER_DEBOUNCE_MS = 300;
 const D2_TARGET_BEDS = ["Bed 5", "Bed 11"];
 let nextD2TargetIndex = 0;
 let d2PillResetTimer = null;
+const AUTO_APPROVE_DELAY_MS = 5000;
+let autoApproveTimeout = null;
+let autoApproveInterval = null;
+let autoApproveTargetBedId = "";
+let autoApproveDeadlineAt = 0;
 
 const firestoreState = {
   enabled: false,
@@ -869,6 +875,7 @@ function setSelectedBedAllClear() {
   if (!selectedCard) return;
 
   if (selectedCard.classList.contains("empty")) return;
+  clearAutoApproveCountdown("Auto: Idle");
 
   const nextStatus = {
     cardType: "normal",
@@ -903,6 +910,7 @@ function setSelectedBedAllClear() {
 }
 
 function handleWaitNurseClick() {
+  clearAutoApproveCountdown("Auto: Held");
   if (!hardwareSocket) return;
   hardwareSocket.emit("serial-write", { message: "WAIT_YELLOW" });
 }
@@ -944,6 +952,12 @@ function activateBedById(bedId) {
   }, 1400);
 
   renderBed(bedId);
+
+  if (risk === "low") {
+    startAutoApproveCountdown(bedId);
+  } else {
+    clearAutoApproveCountdown("Auto: Waiting Low Risk");
+  }
 }
 
 function deactivateBedById(bedId) {
@@ -957,6 +971,10 @@ function deactivateBedById(bedId) {
   };
   applyStatusToCard(targetCard, nextStatus);
   saveCardStatusToFirestore(bedId, nextStatus);
+
+  if (autoApproveTargetBedId === bedId) {
+    clearAutoApproveCountdown("Auto: Cancelled");
+  }
 }
 
 function triggerRandomFromD2() {
@@ -1046,6 +1064,52 @@ function setRedPill(state, text) {
   ui.redDebugPill.textContent = text;
 }
 
+function setAutoApprovePill(state, text) {
+  if (!ui.autoApproveDebugPill) return;
+  ui.autoApproveDebugPill.classList.remove("active", "ok", "error");
+  if (state) ui.autoApproveDebugPill.classList.add(state);
+  ui.autoApproveDebugPill.textContent = text;
+}
+
+function clearAutoApproveCountdown(label = "Auto: Idle") {
+  if (autoApproveTimeout) {
+    clearTimeout(autoApproveTimeout);
+    autoApproveTimeout = null;
+  }
+  if (autoApproveInterval) {
+    clearInterval(autoApproveInterval);
+    autoApproveInterval = null;
+  }
+  autoApproveTargetBedId = "";
+  autoApproveDeadlineAt = 0;
+  setAutoApprovePill("ok", label);
+}
+
+function runAutoApproveForBed(bedId) {
+  if (!bedId) return;
+  renderBed(bedId);
+  setSelectedBedAllClear();
+}
+
+function startAutoApproveCountdown(bedId) {
+  if (!bedId) return;
+  clearAutoApproveCountdown(`Auto: ${bedId} 5.0s`);
+
+  autoApproveTargetBedId = bedId;
+  autoApproveDeadlineAt = Date.now() + AUTO_APPROVE_DELAY_MS;
+
+  autoApproveInterval = setInterval(() => {
+    const remainingMs = Math.max(0, autoApproveDeadlineAt - Date.now());
+    const remainingSec = (remainingMs / 1000).toFixed(1);
+    setAutoApprovePill("active", `Auto: ${bedId} ${remainingSec}s`);
+  }, 100);
+
+  autoApproveTimeout = setTimeout(() => {
+    clearAutoApproveCountdown("Auto: Triggered");
+    runAutoApproveForBed(bedId);
+  }, AUTO_APPROVE_DELAY_MS);
+}
+
 function getParsedValueCaseInsensitive(parsed, expectedKey) {
   const target = String(expectedKey || "").toUpperCase();
   for (const [k, v] of Object.entries(parsed || {})) {
@@ -1069,6 +1133,7 @@ if (hardwareSocket) {
   setMotorPill("ok", "Motor: Listening");
   setLedPill("ok", "LED: Listening");
   setRedPill("ok", "Red: Listening");
+  clearAutoApproveCountdown("Auto: Idle");
   hardwareSocket.emit("auto-connect-serial", { baudRate: 9600 });
 
   hardwareSocket.on("hardware-trigger", (payload) => {
@@ -1125,6 +1190,7 @@ if (hardwareSocket) {
         setMotorPill("ok", "Motor: Listening");
         setLedPill("ok", "LED: Listening");
         setRedPill("ok", "Red: Listening");
+        if (!autoApproveTargetBedId) setAutoApprovePill("ok", "Auto: Idle");
       }
     }
   });
@@ -1136,6 +1202,7 @@ if (hardwareSocket) {
       setMotorPill("error", "Motor: Serial Error");
       setLedPill("error", "LED: Serial Error");
       setRedPill("error", "Red: Serial Error");
+      setAutoApprovePill("error", "Auto: Serial Error");
     }
   });
 } else {
@@ -1143,6 +1210,7 @@ if (hardwareSocket) {
   setMotorPill("error", "Motor: Socket Off");
   setLedPill("error", "LED: Socket Off");
   setRedPill("error", "Red: Socket Off");
+  setAutoApprovePill("error", "Auto: Socket Off");
 }
 
 const themeToggle = document.getElementById("themeToggle");
