@@ -7,6 +7,7 @@
   - Pulses buzzer on D6 for 0.3s when D2 is pressed
   - Drives continuous servos on D8 and D9 in opposite directions on approve command
   - Lights D11 (green) on approve and D12 (yellow) on wait, auto-off after 5s
+  - Latches red alert LED on D10 when D2 button is pressed
   - Accepts commands from website:
       LED_ON
       LED_OFF
@@ -14,6 +15,7 @@
       MOTOR_APPROVE
       APPROVE_GREEN
       WAIT_YELLOW
+      RED_OFF
 */
 
 const int LED_PIN = LED_BUILTIN;
@@ -22,6 +24,7 @@ const int BUTTON_PIN = 2;
 const int BUZZER_PIN = 6;
 const int MOTOR_A_PIN = 8;
 const int MOTOR_B_PIN = 9;
+const int RED_ALERT_LED_PIN = 10;
 const int GREEN_LED_PIN = 11;
 const int YELLOW_LED_PIN = 12;
 
@@ -30,7 +33,8 @@ const int MOTOR_A_FORWARD = 100;
 const int MOTOR_A_REVERSE = 80;
 const int MOTOR_B_FORWARD = 80;
 const int MOTOR_B_REVERSE = 100;
-const unsigned long MOTOR_SPIN_MS = 1000;
+const unsigned long MOTOR_SPIN_OUT_MS = 1000;
+const unsigned long MOTOR_SPIN_BACK_MS = 1300; // 30% longer return/back turn
 const unsigned long MOTOR_RETURN_WAIT_MS = 5000;
 
 int lastButtonReading = HIGH;
@@ -76,7 +80,7 @@ void spinMotorsBack() {
 void triggerMotorApproveCycle() {
   spinMotorsOut();
   motorState = MOTOR_SPIN_OUT;
-  motorPhaseAt = millis() + MOTOR_SPIN_MS;
+  motorPhaseAt = millis() + MOTOR_SPIN_OUT_MS;
   Serial.println("motor=active");
 }
 
@@ -96,6 +100,9 @@ void setup() {
 
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
+
+  pinMode(RED_ALERT_LED_PIN, OUTPUT);
+  digitalWrite(RED_ALERT_LED_PIN, LOW);
 
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
@@ -135,6 +142,9 @@ void handleCommand(String cmd) {
     setActionLeds(true, false, "green");
   } else if (cmd == "WAIT_YELLOW") {
     setActionLeds(false, true, "yellow");
+  } else if (cmd == "RED_OFF") {
+    digitalWrite(RED_ALERT_LED_PIN, LOW);
+    Serial.println("alert_red=off");
   } else if (cmd.length() > 0) {
     Serial.print("unknown=");
     Serial.println(cmd);
@@ -159,6 +169,8 @@ void loop() {
       stableState = currentReading;
       if (stableState == LOW) {
         Serial.println("D2=PRESSED");
+        digitalWrite(RED_ALERT_LED_PIN, HIGH);
+        Serial.println("alert_red=on");
         digitalWrite(BUZZER_PIN, HIGH);
         buzzerOffAt = millis() + BUZZ_DURATION_MS;
       }
@@ -186,7 +198,7 @@ void loop() {
     } else if (motorState == MOTOR_WAIT_BEFORE_RETURN) {
       spinMotorsBack();
       motorState = MOTOR_SPIN_BACK;
-      motorPhaseAt = millis() + MOTOR_SPIN_MS;
+      motorPhaseAt = millis() + MOTOR_SPIN_BACK_MS;
       Serial.println("motor=return");
     } else if (motorState == MOTOR_SPIN_BACK) {
       stopMotors();

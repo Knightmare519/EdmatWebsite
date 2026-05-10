@@ -300,7 +300,8 @@ const ui = {
   randomNotifyBtn: document.getElementById("randomNotifyBtn"),
   d2DebugPill: document.getElementById("d2DebugPill"),
   motorDebugPill: document.getElementById("motorDebugPill"),
-  ledDebugPill: document.getElementById("ledDebugPill")
+  ledDebugPill: document.getElementById("ledDebugPill"),
+  redDebugPill: document.getElementById("redDebugPill")
 };
 const hardwareSocket = typeof window.io === "function" ? window.io() : null;
 let lastD2UiTriggerAt = 0;
@@ -896,6 +897,8 @@ function setSelectedBedAllClear() {
   if (hardwareSocket) {
     hardwareSocket.emit("serial-write", { message: "MOTOR_APPROVE" });
     hardwareSocket.emit("serial-write", { message: "APPROVE_GREEN" });
+    hardwareSocket.emit("serial-write", { message: "RED_OFF" });
+    setRedPill("ok", "Red: D10 Off");
   }
 }
 
@@ -1036,9 +1039,27 @@ function setLedPill(state, text) {
   ui.ledDebugPill.textContent = text;
 }
 
+function setRedPill(state, text) {
+  if (!ui.redDebugPill) return;
+  ui.redDebugPill.classList.remove("active", "ok", "error");
+  if (state) ui.redDebugPill.classList.add(state);
+  ui.redDebugPill.textContent = text;
+}
+
+function getParsedValueCaseInsensitive(parsed, expectedKey) {
+  const target = String(expectedKey || "").toUpperCase();
+  for (const [k, v] of Object.entries(parsed || {})) {
+    if (String(k).toUpperCase() === target) {
+      return String(v || "").toUpperCase();
+    }
+  }
+  return "";
+}
+
 function markD2Received() {
   const stamp = new Date().toLocaleTimeString();
   setD2Pill("active", `D2: ${stamp}`);
+  setRedPill("active", "Red: D10 On");
   if (d2PillResetTimer) clearTimeout(d2PillResetTimer);
   d2PillResetTimer = setTimeout(() => setD2Pill("ok", "D2: Listening"), 1500);
 }
@@ -1047,6 +1068,7 @@ if (hardwareSocket) {
   setD2Pill("ok", "D2: Connecting");
   setMotorPill("ok", "Motor: Listening");
   setLedPill("ok", "LED: Listening");
+  setRedPill("ok", "Red: Listening");
   hardwareSocket.emit("auto-connect-serial", { baudRate: 9600 });
 
   hardwareSocket.on("hardware-trigger", (payload) => {
@@ -1059,9 +1081,12 @@ if (hardwareSocket) {
   hardwareSocket.on("serial-data", (payload) => {
     const raw = String(payload?.raw || "").toUpperCase();
     const parsed = payload?.parsed || {};
-    const parsedD2 = String(parsed.D2 || parsed.d2 || "").toUpperCase();
-    const parsedMotor = String(parsed.motor || parsed.MOTOR || "").toUpperCase();
-    const parsedActionLed = String(parsed.action_led || parsed.ACTION_LED || "").toUpperCase();
+    const parsedD2 = getParsedValueCaseInsensitive(parsed, "D2");
+    const parsedMotor = getParsedValueCaseInsensitive(parsed, "motor");
+    const parsedActionLed = getParsedValueCaseInsensitive(parsed, "action_led");
+    const parsedRedAlert =
+      getParsedValueCaseInsensitive(parsed, "alert_red") ||
+      (raw.includes("ALERT_RED=ON") ? "ON" : raw.includes("ALERT_RED=OFF") ? "OFF" : "");
     if (raw === "D2=PRESSED" || parsedD2 === "PRESSED" || parsedD2 === "1") {
       markD2Received();
     }
@@ -1083,6 +1108,12 @@ if (hardwareSocket) {
     } else if (parsedActionLed === "OFF") {
       setLedPill("ok", "LED: Off");
     }
+
+    if (parsedRedAlert === "ON") {
+      setRedPill("active", "Red: D10 On");
+    } else if (parsedRedAlert === "OFF") {
+      setRedPill("ok", "Red: D10 Off");
+    }
   });
 
   hardwareSocket.on("serial-message", (payload) => {
@@ -1093,6 +1124,7 @@ if (hardwareSocket) {
         setD2Pill("ok", "D2: Listening");
         setMotorPill("ok", "Motor: Listening");
         setLedPill("ok", "LED: Listening");
+        setRedPill("ok", "Red: Listening");
       }
     }
   });
@@ -1103,12 +1135,14 @@ if (hardwareSocket) {
       setD2Pill("error", "D2: Serial Error");
       setMotorPill("error", "Motor: Serial Error");
       setLedPill("error", "LED: Serial Error");
+      setRedPill("error", "Red: Serial Error");
     }
   });
 } else {
   setD2Pill("error", "D2: Socket Off");
   setMotorPill("error", "Motor: Socket Off");
   setLedPill("error", "LED: Socket Off");
+  setRedPill("error", "Red: Socket Off");
 }
 
 const themeToggle = document.getElementById("themeToggle");
